@@ -164,18 +164,11 @@ class SREngineer:
             
         return df
 
-    def _filter_noise(self, indices, volumes, prices):
-        """Checks if volume at extremum is above the 75th percentile of the previous 20 periods."""
-        valid_prices = []
-        for idx in indices:
-            start_idx = max(0, idx - self.vol_ma_period)
-            if start_idx == idx:
-                continue 
-                
-            past_volume = volumes[start_idx:idx]
-            threshold = np.percentile(past_volume, 75)
-            
-            if volumes[idx] >= threshold:
-                valid_prices.append(prices[idx])
-                
-        return np.array(valid_prices)
+    def _filter_noise(self, indices, df):
+     # Compute the 75th percentile threshold for volume across the entire DF once
+     # shift(1) ensures we look at the 'previous 20 periods' as per your logic
+     thresholds = df['volume'].rolling(window=self.vol_ma_period).quantile(0.75).shift(1)
+     
+     # Vectorized filter: Keep indices where volume > threshold
+     valid_mask = df['volume'].iloc[indices] >= thresholds.iloc[indices]
+     return df['close'].iloc[indices][valid_mask].values
