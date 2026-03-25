@@ -1,43 +1,83 @@
-import os
+import yaml
+import logging
+import sys
+from pathlib import Path
 from data_processor import SREngineer
-from train import SRModelTrainer  # Add this import
+from train import SRModelTrainer
+
+def setup_logging():
+    """Configures global logging for the pipeline."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler("pipeline.log")
+        ]
+    )
+
+def load_config(config_path: Path) -> dict:
+    """Loads YAML configuration file."""
+    if not config_path.exists():
+        logging.warning(f"Config not found at {config_path}. Using default parameters.")
+        return {}
+    
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
 
 def main():
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    dataset_path = os.path.join(base_dir, 'datasets', 'btc_dataset.csv')
+    # 1. Setup Environment
+    setup_logging()
+    logger = logging.getLogger("pipeline")
+    
+    # Use pathlib for robust path management
+    base_dir = Path(__file__).resolve().parent.parent
+    config_path = base_dir / "config" / "config.yaml"
+    
+    # 2. Load Configuration
+    config = load_config(config_path)
+    
+    # Extract sub-configs
+    data_cfg = config.get("data", {})
+    feat_cfg = config.get("features", {})
+    train_cfg = config.get("train", {})
+    
+    # 3. Initialize Components
+    # Pass the feature config to the engineer
+    engineer = SREngineer(config=feat_cfg)
+    
+    # Pass the training config to the trainer
+    trainer = SRModelTrainer(config=train_cfg)
 
-    print(f"Looking for dataset at: {dataset_path}")
+    # 4. Execute Pipeline
+    try:
+        raw_data_path = base_dir / data_cfg.get("raw_path", "datasets/btc_dataset.csv")
+        processed_data_path = base_dir / data_cfg.get("processed_path", "datasets/processed_btc_data.csv")
+        
+        logger.info(f"--- PHASE 1: Data Processing ({raw_data_path.name}) ---")
+        processed_df = engineer.process_pipeline(raw_data_path)
+        
+        # Save processed data
+        processed_data_path.parent.mkdir(parents=True, exist_ok=True)
+        processed_df.to_csv(processed_data_path, index=False)
+        logger.info(f"Processed data saved to {processed_data_path}")
 
-    # --- PHASE 1: Data Processing ---
-    # We now pass min_clusters and max_clusters instead of n_clusters
-    engineer = SREngineer(
-        rsi_period=14, 
-        atr_period=14, 
-        vol_ma_period=20, 
-        extrema_window=20, 
-        min_clusters=2, 
-        max_clusters=8
-    )
-    processed_df = engineer.process_pipeline(dataset_path)
-    
-    # Save the processed data for our visualization script
-    processed_df.to_csv(os.path.join(base_dir, 'datasets', 'processed_btc_data.csv'), index=False)
+        logger.info("--- PHASE 2: Model Training & Evaluation ---")
+        X_train, X_test, y_train, y_test = trainer.prepare_data(processed_df)
+        
+        trainer.train(X_train, y_train)
+        trainer.evaluate(X_test, y_test)
+        
+        # 5. Save Artifacts
+        model_dir = base_dir / train_cfg.get("output_dir", "output/production_models")
+        model_name = train_cfg.get("model_name", "sr_rf_model.pkl")
+        trainer.save_model(output_dir=model_dir, model_name=model_name)
+        
+        logger.info("Pipeline Execution Successful.")
 
-    # --- PHASE 2: Model Training & Evaluation ---
-    trainer = SRModelTrainer(test_size=0.2)
-    
-    # Split chronologically
-    X_train, X_test, y_train, y_test = trainer.prepare_data(processed_df)
-    
-    # Train
-    trainer.train(X_train, y_train)
-    
-    # Evaluate
-    trainer.evaluate(X_test, y_test)
-    
-    # Save Model
-    model_dir = os.path.join(base_dir, 'output', 'production_models')
-    trainer.save_model(output_dir=model_dir)
+    except Exception as e:
+        logger.error(f"Pipeline Execution Failed: {e}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

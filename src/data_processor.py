@@ -1,34 +1,48 @@
 import pandas as pd
 import numpy as np
 import logging
+from pathlib import Path
+from typing import List, Optional, Union
 from scipy.signal import argrelextrema
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-# Configure standard logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger('DataProcessor')
+# Use a module-level logger
+logger = logging.getLogger(__name__)
 
 class SREngineer:
-    def __init__(self, rsi_period=14, atr_period=14, vol_ma_period=20, extrema_window=20, min_clusters=2, max_clusters=8):
-        self.rsi_period = rsi_period
-        self.atr_period = atr_period
-        self.vol_ma_period = vol_ma_period
-        self.extrema_window = extrema_window
-        # Dynamic K limits instead of a hardcoded K
-        self.min_clusters = min_clusters
-        self.max_clusters = max_clusters
-        self.support_centers = []
-        self.resistance_centers = []
+    """
+    Engineers features and targets for Support/Resistance detection.
+    
+    Attributes:
+        config (dict): Configuration dictionary for hyperparameters.
+    """
+    def __init__(self, config: Optional[dict] = None):
+        # Default parameters if no config is provided
+        self.params = {
+            "rsi_period": 14,
+            "atr_period": 14,
+            "vol_ma_period": 20,
+            "extrema_window": 20,
+            "min_clusters": 2,
+            "max_clusters": 8,
+            "tolerance": 0.01
+        }
+        if config:
+            self.params.update(config)
+            
+        self.support_centers: List[float] = []
+        self.resistance_centers: List[float] = []
 
-    def process_pipeline(self, filepath: str) -> pd.DataFrame:
+    def process_pipeline(self, filepath: Union[str, Path]) -> pd.DataFrame:
         """Executes the end-to-end data processing pipeline."""
+        path = Path(filepath)
         try:
-            logger.info(f"Starting data processing pipeline for {filepath}")
-            df = pd.read_csv(filepath)
+            logger.info(f"Starting data processing pipeline for {path}")
+            if not path.exists():
+                raise FileNotFoundError(f"Dataset not found at: {path}")
+
+            df = pd.read_csv(path)
             
             df = self._sanitize_data(df)
             df = self._engineer_features(df)
@@ -37,138 +51,112 @@ class SREngineer:
             logger.info("Data processing pipeline completed successfully.")
             return df
             
-        except FileNotFoundError:
-            logger.error(f"Dataset not found at path: {filepath}")
-            raise
         except Exception as e:
-            logger.error(f"An unexpected error occurred during processing: {e}")
+            logger.error(f"Pipeline failure: {e}")
             raise
 
     def _sanitize_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Removes API artifacts and zero-volume dead zones."""
-        logger.info("Sanitizing base data...")
-        initial_len = len(df)
-        
+        """Clean raw data artifacts."""
+        df = df.copy()
         if 'ignore' in df.columns:
-            df = df.drop(columns=['ignore'])
+            df.drop(columns=['ignore'], inplace=True)
             
-        # Drop rows where volume is exactly 0 (market inactivity/API outages)
-        df = df[df['volume'] > 0].copy()
+        # Remove dead zones
+        initial_len = len(df)
+        df = df[df['volume'] > 0]
         df.reset_index(drop=True, inplace=True)
         
-        logger.info(f"Sanitization complete. Removed {initial_len - len(df)} noisy/empty records.")
+        logger.info(f"Sanitization complete. Removed {initial_len - len(df)} rows.")
         return df
 
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculates RSI, ATR, and Volume Moving Averages."""
-        logger.info("Engineering predictive features (RSI, ATR, Vol_MA, Lags, RoC)...")
+        """Feature engineering for ML model."""
+        p = self.params
         
-        # 1. Volume Moving Average
-        df['vol_ma'] = df['volume'].rolling(window=self.vol_ma_period).mean()
+        # 1. Volume MA
+        df['vol_ma'] = df['volume'].rolling(window=p['vol_ma_period']).mean()
         
-        # 2. Relative Strength Index (RSI)
+        # 2. RSI
         delta = df['close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=self.rsi_period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=self.rsi_period).mean()
+        gain = (delta.where(delta > 0, 0)).rolling(window=p['rsi_period']).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=p['rsi_period']).mean()
         rs = gain / loss
         df['rsi'] = 100 - (100 / (1 + rs))
         
-        # 3. Average True Range (ATR)
+        # 3. ATR
         high_low = df['high'] - df['low']
         high_close = np.abs(df['high'] - df['close'].shift())
         low_close = np.abs(df['low'] - df['close'].shift())
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = np.max(ranges, axis=1)
-        df['atr'] = true_range.rolling(window=self.atr_period).mean()
+        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        df['atr'] = true_range.rolling(window=p['atr_period']).mean()
         
-        # 4. Lagged Features (Giving the model "memory" of the previous 2 candles)
+        # 4. Lags & Momentum
         df['rsi_lag1'] = df['rsi'].shift(1)
         df['vol_ma_lag1'] = df['vol_ma'].shift(1)
-        
-        # 5. Price Rate of Change (Momentum acceleration)
         df['price_roc'] = df['close'].pct_change(periods=3) * 100
         
-        # Drop NaN values generated by rolling windows
-        df.dropna(inplace=True)
-        df.reset_index(drop=True, inplace=True)
-        return df
+        return df.dropna().reset_index(drop=True)
 
-    def _find_optimal_clusters(self, data, zone_name="Zone"):
-        """Dynamically finds the optimal number of clusters using Silhouette Score."""
-        if len(data) < self.max_clusters:
-            logger.warning(f"Not enough data points ({len(data)}) for {zone_name} clustering up to {self.max_clusters}.")
-            if len(data) >= self.min_clusters:
-                max_k = len(data) - 1
-            else:
-                return []
-        else:
-            max_k = self.max_clusters
+    def _find_optimal_clusters(self, data: np.ndarray, zone_name: str = "Zone") -> List[float]:
+        """Dynamically find clusters using Silhouette Score."""
+        min_k = self.params['min_clusters']
+        max_k = min(self.params['max_clusters'], len(data) - 1)
 
-        best_score = -1
-        best_centers = []
-        best_k = 0
-        
-        # Data must be 2D for scikit-learn
+        if len(data) <= min_k:
+            return []
+
+        best_score, best_centers, best_k = -1, [], 0
         X = data.reshape(-1, 1)
 
-        for k in range(self.min_clusters, max_k + 1):
-            kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-            labels = kmeans.fit_predict(X)
+        for k in range(min_k, max_k + 1):
+            km = KMeans(n_clusters=k, random_state=42, n_init=10)
+            labels = km.fit_predict(X)
             
-            # Silhouette score requires at least 2 clusters and less than n_samples
             if len(set(labels)) > 1:
                 score = silhouette_score(X, labels)
                 if score > best_score:
-                    best_score = score
-                    best_centers = kmeans.cluster_centers_.flatten()
-                    best_k = k
+                    best_score, best_centers, best_k = score, km.cluster_centers_.flatten(), k
 
-        logger.info(f"Optimal K for {zone_name} selected as {best_k} (Silhouette Score: {best_score:.4f})")
-        return best_centers
+        logger.info(f"Optimal K for {zone_name}: {best_k} (Score: {best_score:.4f})")
+        return list(best_centers)
 
     def _generate_targets(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Executes custom noise filtering and clustering to generate S/R labels."""
-        logger.info("Generating target variables via rolling extrema and volume thresholding...")
+        """Identify S/R levels and map to targets."""
+        win = self.params['extrema_window']
+        prices = df['close'].values
         
-        close_prices = df['close'].values
-        volumes = df['volume'].values
+        # Extrema Detection
+        peaks = argrelextrema(prices, np.greater, order=win)[0]
+        troughs = argrelextrema(prices, np.less, order=win)[0]
         
-        # Find raw peaks and troughs
-        peaks = argrelextrema(close_prices, np.greater, order=self.extrema_window)[0]
-        troughs = argrelextrema(close_prices, np.less, order=self.extrema_window)[0]
-        
-        # Apply Custom Volume Filter (Backward-looking 75th percentile to avoid data leakage)
-        valid_peaks = self._filter_noise(peaks, volumes, close_prices)
-        valid_troughs = self._filter_noise(troughs, volumes, close_prices)
+        # Volume Filter (Passing the full dataframe to utilize the vectorized logic)
+        valid_peaks = self._filter_noise(peaks, df)
+        valid_troughs = self._filter_noise(troughs, df)
         
         logger.info(f"Volume filter retained {len(valid_peaks)} peaks and {len(valid_troughs)} troughs.")
         
-        # Dynamically cluster valid extrema
-        logger.info("Calculating optimal Silhouette Scores for Resistance clusters...")
+        # Clustering
         self.resistance_centers = self._find_optimal_clusters(valid_peaks, "Resistance")
-        
-        logger.info("Calculating optimal Silhouette Scores for Support clusters...")
         self.support_centers = self._find_optimal_clusters(valid_troughs, "Support")
 
-        # Map labels back to dataset (0=Normal, 1=Support, 2=Resistance)
-        tolerance = 0.01 
+        # Labeling
+        tol = self.params['tolerance']
         df['target'] = 0 
         
         for center in self.support_centers:
-            mask = (df['close'] >= center * (1 - tolerance)) & (df['close'] <= center * (1 + tolerance))
-            df.loc[mask, 'target'] = 1
-            
+            df.loc[df['close'].between(center*(1-tol), center*(1+tol)), 'target'] = 1
         for center in self.resistance_centers:
-            mask = (df['close'] >= center * (1 - tolerance)) & (df['close'] <= center * (1 + tolerance))
-            df.loc[mask, 'target'] = 2
+            df.loc[df['close'].between(center*(1-tol), center*(1+tol)), 'target'] = 2
             
         return df
 
-    def _filter_noise(self, indices, df):
-     # Compute the 75th percentile threshold for volume across the entire DF once
-     # shift(1) ensures we look at the 'previous 20 periods' as per your logic
-     thresholds = df['volume'].rolling(window=self.vol_ma_period).quantile(0.75).shift(1)
-     
-     # Vectorized filter: Keep indices where volume > threshold
-     valid_mask = df['volume'].iloc[indices] >= thresholds.iloc[indices]
-     return df['close'].iloc[indices][valid_mask].values
+    def _filter_noise(self, indices: np.ndarray, df: pd.DataFrame) -> np.ndarray:
+        """Vectorized noise filter based on volume thresholding."""
+        # Compute the 75th percentile threshold for volume across the entire DF once
+        # shift(1) ensures we look at the 'previous periods' to prevent data leakage
+        thresholds = df['volume'].rolling(window=self.params['vol_ma_period']).quantile(0.75).shift(1)
+        
+        # Vectorized filter: Keep indices where volume >= threshold
+        valid_mask = df['volume'].iloc[indices] >= thresholds.iloc[indices]
+        
+        return df['close'].iloc[indices][valid_mask].values

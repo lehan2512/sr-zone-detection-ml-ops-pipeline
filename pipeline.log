@@ -1,0 +1,133 @@
+2026-03-26 03:46:42,826 - Pipeline - INFO - --- PHASE 1: Data Processing (btc_dataset.csv) ---
+2026-03-26 03:46:42,827 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\btc_dataset.csv
+2026-03-26 03:46:42,941 - data_processor - INFO - Sanitization complete. Removed 4 rows.
+2026-03-26 03:46:45,216 - data_processor - INFO - Optimal K for Resistance: 4 (Score: 0.6821)
+2026-03-26 03:46:45,701 - data_processor - INFO - Optimal K for Support: 4 (Score: 0.6729)
+2026-03-26 03:46:45,707 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 03:46:46,506 - Pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_btc_data.csv
+2026-03-26 03:46:46,506 - Pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 03:46:46,506 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 03:46:46,520 - train - INFO - Training set: 7116 records | Testing set: 12396 records
+2026-03-26 03:46:46,522 - train - INFO - Training Random Forest Classifier...
+2026-03-26 03:46:46,974 - train - INFO - Model training complete.
+2026-03-26 03:46:46,975 - train - INFO - Evaluating model on test data...
+2026-03-26 03:46:47,201 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 03:46:47,202 - Pipeline - INFO - Pipeline Execution Successful.
+2026-03-26 03:48:07,923 - Pipeline - INFO - --- PHASE 1: Data Processing (btc_dataset.csv) ---
+2026-03-26 03:48:07,924 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\btc_dataset.csv
+2026-03-26 03:48:08,004 - data_processor - INFO - Sanitization complete. Removed 4 rows.
+2026-03-26 03:48:10,126 - data_processor - INFO - Optimal K for Resistance: 4 (Score: 0.6821)
+2026-03-26 03:48:10,565 - data_processor - INFO - Optimal K for Support: 4 (Score: 0.6729)
+2026-03-26 03:48:10,572 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 03:48:11,340 - Pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_btc_data.csv
+2026-03-26 03:48:11,340 - Pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 03:48:11,341 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 03:48:11,356 - train - INFO - Training set: 7116 records | Testing set: 12396 records
+2026-03-26 03:48:11,358 - train - INFO - Training Random Forest Classifier...
+2026-03-26 03:48:11,783 - train - INFO - Model training complete.
+2026-03-26 03:48:11,784 - train - INFO - Evaluating model on test data...
+2026-03-26 03:48:11,995 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 03:48:11,996 - Pipeline - INFO - Pipeline Execution Successful.
+2026-03-26 03:54:25,890 - Pipeline - INFO - --- PHASE 1: Data Processing (btc_dataset.csv) ---
+2026-03-26 03:54:25,891 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\btc_dataset.csv
+2026-03-26 03:54:25,978 - data_processor - INFO - Sanitization complete. Removed 4 rows.
+2026-03-26 03:54:26,018 - data_processor - ERROR - Pipeline failure: SREngineer._filter_noise() takes 3 positional arguments but 4 were given
+2026-03-26 03:54:26,019 - Pipeline - ERROR - Pipeline Execution Failed: SREngineer._filter_noise() takes 3 positional arguments but 4 were given
+Traceback (most recent call last):
+  File "C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\src\run_pipeline.py", line 58, in main
+    processed_df = engineer.process_pipeline(raw_data_path)
+  File "C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\src\data_processor.py", line 49, in process_pipeline
+    df = self._generate_targets(df)
+  File "C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\src\data_processor.py", line 133, in _generate_targets
+    valid_peaks = self._filter_noise(peaks, volumes, prices)
+TypeError: SREngineer._filter_noise() takes 3 positional arguments but 4 were given
+2026-03-26 04:00:03,172 - Pipeline - INFO - --- PHASE 1: Data Processing (btc_dataset.csv) ---
+2026-03-26 04:00:03,173 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\btc_dataset.csv
+2026-03-26 04:00:03,267 - data_processor - INFO - Sanitization complete. Removed 4 rows.
+2026-03-26 04:00:03,370 - data_processor - INFO - Volume filter retained 621 peaks and 655 troughs.
+2026-03-26 04:00:05,429 - data_processor - INFO - Optimal K for Resistance: 4 (Score: 0.6821)
+2026-03-26 04:00:05,876 - data_processor - INFO - Optimal K for Support: 4 (Score: 0.6729)
+2026-03-26 04:00:05,883 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 04:00:06,729 - Pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_btc_data.csv
+2026-03-26 04:00:06,730 - Pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 04:00:06,731 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 04:00:06,745 - train - INFO - Original Training set: 49580 records
+2026-03-26 04:00:06,746 - train - INFO - Undersampled Training set: 7116 records (Forced model attention)
+2026-03-26 04:00:06,746 - train - INFO - Testing set (Untouched reality): 12396 records
+2026-03-26 04:00:06,748 - train - INFO - Training Random Forest Classifier...
+2026-03-26 04:00:07,234 - train - INFO - Model training complete.
+2026-03-26 04:00:07,234 - train - INFO - Evaluating model on test data...
+2026-03-26 04:00:07,468 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 04:00:07,468 - Pipeline - INFO - Pipeline Execution Successful.
+2026-03-26 04:03:21,457 - pipeline - INFO - --- PHASE 1: Data Processing (btc_dataset.csv) ---
+2026-03-26 04:03:21,457 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\btc_dataset.csv
+2026-03-26 04:03:21,556 - data_processor - INFO - Sanitization complete. Removed 4 rows.
+2026-03-26 04:03:21,651 - data_processor - INFO - Volume filter retained 621 peaks and 655 troughs.
+2026-03-26 04:03:23,532 - data_processor - INFO - Optimal K for Resistance: 4 (Score: 0.6821)
+2026-03-26 04:03:23,972 - data_processor - INFO - Optimal K for Support: 4 (Score: 0.6729)
+2026-03-26 04:03:23,977 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 04:03:24,692 - pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_btc_data.csv
+2026-03-26 04:03:24,693 - pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 04:03:24,693 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 04:03:24,707 - train - INFO - Original Training set: 49580 records
+2026-03-26 04:03:24,708 - train - INFO - Undersampled Training set: 7116 records (Forced model attention)
+2026-03-26 04:03:24,708 - train - INFO - Testing set (Untouched reality): 12396 records
+2026-03-26 04:03:24,710 - train - INFO - Training Random Forest Classifier...
+2026-03-26 04:03:25,126 - train - INFO - Model training complete.
+2026-03-26 04:03:25,127 - train - INFO - Evaluating model on test data...
+2026-03-26 04:03:25,338 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 04:03:25,339 - pipeline - INFO - Pipeline Execution Successful.
+2026-03-26 04:06:57,088 - pipeline - INFO - --- PHASE 1: Data Processing (eth_dataset.csv) ---
+2026-03-26 04:06:57,089 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\eth_dataset.csv
+2026-03-26 04:06:57,181 - data_processor - INFO - Sanitization complete. Removed 3 rows.
+2026-03-26 04:06:57,268 - data_processor - INFO - Volume filter retained 571 peaks and 629 troughs.
+2026-03-26 04:06:59,474 - data_processor - INFO - Optimal K for Resistance: 5 (Score: 0.6755)
+2026-03-26 04:06:59,908 - data_processor - INFO - Optimal K for Support: 6 (Score: 0.6590)
+2026-03-26 04:06:59,917 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 04:07:00,624 - pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_data.csv
+2026-03-26 04:07:00,624 - pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 04:07:00,625 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 04:07:00,640 - train - INFO - Original Training set: 47981 records
+2026-03-26 04:07:00,640 - train - INFO - Undersampled Training set: 13971 records (Forced model attention)
+2026-03-26 04:07:00,641 - train - INFO - Testing set (Untouched reality): 11996 records
+2026-03-26 04:07:00,644 - train - INFO - Training Random Forest Classifier...
+2026-03-26 04:07:01,232 - train - INFO - Model training complete.
+2026-03-26 04:07:01,233 - train - INFO - Evaluating model on test data...
+2026-03-26 04:07:01,478 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 04:07:01,478 - pipeline - INFO - Pipeline Execution Successful.
+2026-03-26 04:18:35,756 - pipeline - INFO - --- PHASE 1: Data Processing (eth_dataset.csv) ---
+2026-03-26 04:18:35,756 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\eth_dataset.csv
+2026-03-26 04:18:35,849 - data_processor - INFO - Sanitization complete. Removed 3 rows.
+2026-03-26 04:18:35,957 - data_processor - INFO - Volume filter retained 571 peaks and 629 troughs.
+2026-03-26 04:18:37,956 - data_processor - INFO - Optimal K for Resistance: 5 (Score: 0.6755)
+2026-03-26 04:18:38,385 - data_processor - INFO - Optimal K for Support: 6 (Score: 0.6590)
+2026-03-26 04:18:38,393 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 04:18:39,143 - pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_data.csv
+2026-03-26 04:18:39,144 - pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 04:18:39,145 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 04:18:39,164 - train - INFO - Original Training set: 47981 records
+2026-03-26 04:18:39,165 - train - INFO - Undersampled Training set: 13971 records (Forced model attention)
+2026-03-26 04:18:39,165 - train - INFO - Testing set (Untouched reality): 11996 records
+2026-03-26 04:18:39,167 - train - INFO - Training Random Forest Classifier...
+2026-03-26 04:18:39,750 - train - INFO - Model training complete.
+2026-03-26 04:18:39,751 - train - INFO - Evaluating model on test data...
+2026-03-26 04:18:39,988 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 04:18:39,990 - pipeline - INFO - Pipeline Execution Successful.
+2026-03-26 04:20:23,393 - pipeline - INFO - --- PHASE 1: Data Processing (eth_dataset.csv) ---
+2026-03-26 04:20:23,394 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\eth_dataset.csv
+2026-03-26 04:20:23,538 - data_processor - INFO - Sanitization complete. Removed 3 rows.
+2026-03-26 04:20:23,641 - data_processor - INFO - Volume filter retained 571 peaks and 629 troughs.
+2026-03-26 04:20:26,513 - data_processor - INFO - Optimal K for Resistance: 5 (Score: 0.6755)
+2026-03-26 04:20:26,976 - data_processor - INFO - Optimal K for Support: 6 (Score: 0.6590)
+2026-03-26 04:20:26,985 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 04:20:27,717 - pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_data.csv
+2026-03-26 04:20:27,717 - pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 04:20:27,717 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 04:20:27,733 - train - INFO - Original Training set: 47981 records
+2026-03-26 04:20:27,733 - train - INFO - Undersampled Training set: 13971 records (Forced model attention)
+2026-03-26 04:20:27,733 - train - INFO - Testing set (Untouched reality): 11996 records
+2026-03-26 04:20:27,736 - train - INFO - Training Random Forest Classifier...
+2026-03-26 04:20:28,386 - train - INFO - Model training complete.
+2026-03-26 04:20:28,387 - train - INFO - Evaluating model on test data...
+2026-03-26 04:20:28,629 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 04:20:28,629 - pipeline - INFO - Pipeline Execution Successful.
