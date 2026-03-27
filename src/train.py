@@ -83,10 +83,41 @@ class SRModelTrainer:
         return X_train, X_test, y_train, y_test
 
     def train(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:
-        """Trains the Random Forest model."""
-        logger.info("Training Random Forest Classifier...")
-        self.model.fit(X_train, y_train)
-        logger.info("Model training complete.")
+        """Trains the Random Forest model using Randomized Hyperparameter Tuning."""
+        logger.info("Starting Hyperparameter Tuning via RandomizedSearchCV...")
+        
+        # Define the parameter space we want the algorithm to explore
+        param_dist = {
+            'n_estimators': [100, 200, 300, 500],
+            'max_depth': [10, 15, 20, 25, None],
+            'min_samples_split': [2, 5, 10, 15],
+            'min_samples_leaf': [1, 2, 4],
+            'max_features': ['sqrt', 'log2', None]
+        }
+
+        # Initialize the random search with 3-fold cross-validation
+        # n_iter=20 means it will test 20 different random combinations
+        random_search = RandomizedSearchCV(
+            estimator=self.model,
+            param_distributions=param_dist,
+            n_iter=20, 
+            cv=3, 
+            scoring='f1_macro', # Optimize for the F1 score to balance Precision/Recall
+            random_state=self.params["random_state"],
+            n_jobs=-1, # Use all CPU cores
+            verbose=1  # Print progress to terminal
+        )
+
+        # Execute the search on the undersampled training data
+        random_search.fit(X_train, y_train)
+
+        logger.info(f"Hyperparameter Tuning Complete.")
+        logger.info(f"Best Parameters Found: {random_search.best_params_}")
+        
+        # Overwrite our default model with the newly optimized super-model
+        self.model = random_search.best_estimator_
+        
+        logger.info("Optimized model is ready for evaluation.")
 
     def evaluate(self, X_test: pd.DataFrame, y_test: pd.Series) -> None:
         """Evaluates model performance."""

@@ -131,3 +131,61 @@ TypeError: SREngineer._filter_noise() takes 3 positional arguments but 4 were gi
 2026-03-26 04:20:28,387 - train - INFO - Evaluating model on test data...
 2026-03-26 04:20:28,629 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
 2026-03-26 04:20:28,629 - pipeline - INFO - Pipeline Execution Successful.
+2026-03-26 04:35:34,646 - pipeline - INFO - --- PHASE 1: Data Processing (eth_dataset.csv) ---
+2026-03-26 04:35:34,647 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\eth_dataset.csv
+2026-03-26 04:35:34,727 - data_processor - INFO - Sanitization complete. Removed 3 rows.
+2026-03-26 04:35:34,817 - data_processor - INFO - Volume filter retained 571 peaks and 629 troughs.
+2026-03-26 04:35:36,701 - data_processor - INFO - Optimal K for Resistance: 5 (Score: 0.6755)
+2026-03-26 04:35:37,172 - data_processor - INFO - Optimal K for Support: 6 (Score: 0.6590)
+2026-03-26 04:35:37,182 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 04:35:37,892 - pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_data.csv
+2026-03-26 04:35:37,893 - pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 04:35:37,893 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 04:35:37,911 - train - INFO - Original Training set: 47981 records
+2026-03-26 04:35:37,912 - train - INFO - Undersampled Training set: 13971 records (Forced model attention)
+2026-03-26 04:35:37,912 - train - INFO - Testing set (Untouched reality): 11996 records
+2026-03-26 04:35:37,915 - train - INFO - Training Random Forest Classifier...
+2026-03-26 04:35:38,650 - train - INFO - Model training complete.
+2026-03-26 04:35:38,651 - train - INFO - Evaluating model on test data...
+2026-03-26 04:35:38,939 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 04:35:38,940 - pipeline - INFO - Pipeline Execution Successful.
+2026-03-26 04:35:57,253 - pipeline - INFO - --- PHASE 1: Data Processing (eth_dataset.csv) ---
+2026-03-26 04:35:57,254 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\eth_dataset.csv
+2026-03-26 04:35:57,336 - data_processor - INFO - Sanitization complete. Removed 3 rows.
+2026-03-26 04:35:57,432 - data_processor - INFO - Volume filter retained 571 peaks and 629 troughs.
+2026-03-26 04:35:59,402 - data_processor - INFO - Optimal K for Resistance: 5 (Score: 0.6755)
+2026-03-26 04:35:59,839 - data_processor - INFO - Optimal K for Support: 6 (Score: 0.6590)
+2026-03-26 04:35:59,845 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-26 04:36:00,633 - pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_data.csv
+2026-03-26 04:36:00,634 - pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-26 04:36:00,634 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-26 04:36:00,654 - train - INFO - Original Training set: 47981 records
+2026-03-26 04:36:00,655 - train - INFO - Undersampled Training set: 13971 records (Forced model attention)
+2026-03-26 04:36:00,655 - train - INFO - Testing set (Untouched reality): 11996 records
+2026-03-26 04:36:00,656 - train - INFO - Starting Hyperparameter Tuning via RandomizedSearchCV...
+2026-03-26 04:36:50,608 - train - INFO - Hyperparameter Tuning Complete.
+2026-03-26 04:36:50,609 - train - INFO - Best Parameters Found: {'n_estimators': 300, 'min_samples_split': 15, 'min_samples_leaf': 4, 'max_features': None, 'max_depth': 20}
+2026-03-26 04:36:50,609 - train - INFO - Optimized model is ready for evaluation.
+2026-03-26 04:36:50,609 - train - INFO - Evaluating model on test data...
+2026-03-26 04:36:51,024 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-26 04:36:51,024 - pipeline - INFO - Pipeline Execution Successful.
+2026-03-27 18:11:53,111 - pipeline - INFO - --- PHASE 1: Data Processing (eth_dataset.csv) ---
+2026-03-27 18:11:53,111 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\eth_dataset.csv
+2026-03-27 18:11:53,201 - data_processor - INFO - Sanitization complete. Removed 3 rows.
+2026-03-27 18:11:53,306 - data_processor - INFO - Volume filter retained 571 peaks and 629 troughs.
+2026-03-27 18:11:55,610 - data_processor - INFO - Optimal K for Resistance: 5 (Score: 0.6755)
+2026-03-27 18:11:56,057 - data_processor - INFO - Optimal K for Support: 6 (Score: 0.6590)
+2026-03-27 18:11:56,066 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-27 18:11:56,757 - pipeline - INFO - Processed data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\processed_data.csv
+2026-03-27 18:11:56,757 - pipeline - INFO - --- PHASE 2: Model Training & Evaluation ---
+2026-03-27 18:11:56,758 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-27 18:11:56,770 - train - INFO - Original Training set: 47981 records
+2026-03-27 18:11:56,771 - train - INFO - Undersampled Training set: 13971 records (Forced model attention)
+2026-03-27 18:11:56,771 - train - INFO - Testing set (Untouched reality): 11996 records
+2026-03-27 18:11:56,773 - train - INFO - Starting Hyperparameter Tuning via RandomizedSearchCV...
+2026-03-27 18:12:46,860 - train - INFO - Hyperparameter Tuning Complete.
+2026-03-27 18:12:46,861 - train - INFO - Best Parameters Found: {'n_estimators': 300, 'min_samples_split': 15, 'min_samples_leaf': 4, 'max_features': None, 'max_depth': 20}
+2026-03-27 18:12:46,862 - train - INFO - Optimized model is ready for evaluation.
+2026-03-27 18:12:46,863 - train - INFO - Evaluating model on test data...
+2026-03-27 18:12:47,342 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-27 18:12:47,343 - pipeline - INFO - Pipeline Execution Successful.

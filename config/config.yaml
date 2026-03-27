@@ -23,8 +23,5 @@ features:
 train:
   test_size: 0.2
   random_state: 42
-  n_estimators: 200
-  max_depth: 15
-  min_samples_split: 5
   output_dir: "output/production_models"
   model_name: "sr_rf_model.pkl"
