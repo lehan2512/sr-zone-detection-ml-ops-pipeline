@@ -1,0 +1,40 @@
+name: Build and Deploy to Azure ACI
+
+on:
+  workflow_dispatch: # Allows you to manually trigger for your report screenshots
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Login to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest .
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest
+
+      - name: Deploy to ACI via Azure CLI
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.30.0
+          inlineScript: |
+            az container create \
+              --resource-group rg-sr-ops \
+              --name sr-trainer \
+              --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest \
+              --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
+              --registry-username ${{ secrets.REGISTRY_USERNAME }} \
+              --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
+              --location westeurope \
+              --cpu 2 \
+              --memory 4 \
+              --restart-policy OnFailure
