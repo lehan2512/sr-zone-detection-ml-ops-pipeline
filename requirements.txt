@@ -1,9 +1,10 @@
 pandas
-scikit-learn
-matplotlib
-joblib
 numpy
-yfinance
-ccxt
-python-dotenv
 PyYAML
+scikit-learn
+scipy
+matplotlib
+seaborn
+joblib
+requests
+python-dotenv
