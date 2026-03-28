@@ -2,8 +2,8 @@ name: Automated MLOps Azure Deployment
 
 on:
   push:
-    branches: [ main ] # Triggers automatically on every push
-  workflow_dispatch:   # Also allows manual trigger for testing
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Login to ACR
+      - name: Login to ACR (Docker)
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
@@ -24,12 +24,12 @@ jobs:
           docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }} .
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }}
 
-      - name: Deploy to ACI (Bypass Login)
+      - name: Deploy to ACI (Direct Auth)
         uses: azure/CLI@v1
         with:
           azcliversion: latest
           inlineScript: |
-            # We use the Registry Password to authenticate the creation without 'az login'
+            # The --subscription flag is the "magic" that bypasses the 'az login' error
             az container create \
               --resource-group rg-sr-ops \
               --name sr-trainer-automated \
