@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Tuple, List, Optional, Union
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 
 # Use a module-level logger
 logger = logging.getLogger(__name__)
@@ -37,6 +37,44 @@ class SRModelTrainer:
             random_state=self.params["random_state"],
             n_jobs=-1
         )
+
+    def prepare_data_from_split(self, train_df: pd.DataFrame, test_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+        """Applies Majority Class Undersampling to pre-split training data."""
+        logger.info("Preparing pre-split data for training (Undersampling training set only)...")
+        
+        target_col = self.params["target"]
+        features_col = self.params["features"]
+
+        # 1. Undersample the Majority Class (0 = Normal) in the TRAINING set only
+        support_count = len(train_df[train_df[target_col] == 1])
+        resist_count = len(train_df[train_df[target_col] == 2])
+        
+        # Calculate target normal count (approx 2:1 ratio of normal to zones)
+        target_normal_count = int((support_count + resist_count) * 2.0)
+
+        normal_df = train_df[train_df[target_col] == 0]
+        zones_df = train_df[train_df[target_col] != 0]
+
+        # Failsafe: Ensure we don't try to sample more normal rows than exist
+        target_normal_count = min(target_normal_count, len(normal_df))
+        
+        # Randomly sample the normal candles to shrink the majority class
+        sampled_normal_df = normal_df.sample(n=target_normal_count, random_state=self.params["random_state"])
+        
+        # Recombine and shuffle the training set
+        balanced_train_df = pd.concat([sampled_normal_df, zones_df]).sample(frac=1, random_state=self.params["random_state"])
+
+        X_train = balanced_train_df[features_col]
+        y_train = balanced_train_df[target_col]
+        
+        X_test = test_df[features_col]
+        y_test = test_df[target_col]
+
+        logger.info(f"Original Training set: {len(train_df)} records")
+        logger.info(f"Undersampled Training set: {len(X_train)} records (Forced model attention)")
+        logger.info(f"Testing set: {len(X_test)} records")
+        
+        return X_train, X_test, y_train, y_test
 
     def prepare_data(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """Splits data chronologically and applies Majority Class Undersampling."""
@@ -83,8 +121,8 @@ class SRModelTrainer:
         return X_train, X_test, y_train, y_test
 
     def train(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:
-        """Trains the Random Forest model using Randomized Hyperparameter Tuning."""
-        logger.info("Starting Hyperparameter Tuning via RandomizedSearchCV...")
+        """Trains the Random Forest model using Randomized Hyperparameter Tuning with TimeSeriesSplit."""
+        logger.info("Starting Hyperparameter Tuning via RandomizedSearchCV (TimeSeriesSplit)...")
         
         # Define the parameter space we want the algorithm to explore
         param_dist = {
@@ -95,13 +133,15 @@ class SRModelTrainer:
             'max_features': ['sqrt', 'log2', None]
         }
 
-        # Initialize the random search with 3-fold cross-validation
-        # n_iter=20 means it will test 20 different random combinations
+        # Use TimeSeriesSplit to maintain chronological order during cross-validation
+        tscv = TimeSeriesSplit(n_splits=5)
+
+        # Initialize the random search
         random_search = RandomizedSearchCV(
             estimator=self.model,
             param_distributions=param_dist,
-            n_iter=20, 
-            cv=3, 
+            n_iter=15, 
+            cv=tscv, 
             scoring='f1_macro', # Optimize for the F1 score to balance Precision/Recall
             random_state=self.params["random_state"],
             n_jobs=-1, # Use all CPU cores

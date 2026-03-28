@@ -35,7 +35,7 @@ class SREngineer:
         self.resistance_centers: List[float] = []
 
     def process_pipeline(self, filepath: Union[str, Path]) -> pd.DataFrame:
-        """Executes the end-to-end data processing pipeline."""
+        """Executes the end-to-end data processing pipeline (Sanitization + Feature Engineering)."""
         path = Path(filepath)
         try:
             logger.info(f"Starting data processing pipeline for {path}")
@@ -46,9 +46,8 @@ class SREngineer:
             
             df = self._sanitize_data(df)
             df = self._engineer_features(df)
-            df = self._generate_targets(df)
             
-            logger.info("Data processing pipeline completed successfully.")
+            logger.info("Data processing pipeline (Features) completed successfully.")
             return df
             
         except Exception as e:
@@ -103,6 +102,7 @@ class SREngineer:
         max_k = min(self.params['max_clusters'], len(data) - 1)
 
         if len(data) <= min_k:
+            logger.warning(f"Insufficient data for {zone_name} clustering.")
             return []
 
         best_score, best_centers, best_k = -1, [], 0
@@ -120,29 +120,35 @@ class SREngineer:
         logger.info(f"Optimal K for {zone_name}: {best_k} (Score: {best_score:.4f})")
         return list(best_centers)
 
-    def _generate_targets(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Identify S/R levels and map to targets."""
+    def fit_clusters(self, train_df: pd.DataFrame) -> None:
+        """Identify S/R levels using ONLY training data to prevent leakage."""
         win = self.params['extrema_window']
-        prices = df['close'].values
+        prices = train_df['close'].values
         
         # Extrema Detection
         peaks = argrelextrema(prices, np.greater, order=win)[0]
         troughs = argrelextrema(prices, np.less, order=win)[0]
         
-        # Volume Filter (Passing the full dataframe to utilize the vectorized logic)
-        valid_peaks = self._filter_noise(peaks, df)
-        valid_troughs = self._filter_noise(troughs, df)
+        # Volume Filter
+        valid_peaks = self._filter_noise(peaks, train_df)
+        valid_troughs = self._filter_noise(troughs, train_df)
         
-        logger.info(f"Volume filter retained {len(valid_peaks)} peaks and {len(valid_troughs)} troughs.")
+        logger.info(f"Volume filter retained {len(valid_peaks)} peaks and {len(valid_troughs)} troughs from training data.")
         
         # Clustering
         self.resistance_centers = self._find_optimal_clusters(valid_peaks, "Resistance")
         self.support_centers = self._find_optimal_clusters(valid_troughs, "Support")
 
-        # Labeling
+    def label_targets(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Labels a dataframe based on proximity to previously fitted S/R centers."""
+        df = df.copy()
         tol = self.params['tolerance']
         df['target'] = 0 
         
+        if not self.support_centers and not self.resistance_centers:
+            logger.warning("No S/R centers found. Targets will all be 0.")
+            return df
+
         for center in self.support_centers:
             df.loc[df['close'].between(center*(1-tol), center*(1+tol)), 'target'] = 1
         for center in self.resistance_centers:

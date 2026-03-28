@@ -3,6 +3,7 @@ import logging
 import sys
 import yaml
 import argparse
+import pandas as pd
 from pathlib import Path
 
 # Import your pipeline modules
@@ -66,16 +67,36 @@ def run_ml_microservice(symbol: str) -> str:
         logger.info(f"PHASE 1: Fetching latest 60,000 hourly candles for {symbol}...")
         fetch_binance_klines(symbol=symbol, interval='1h', total_records=60000, filename=str(raw_data_path))
 
-        # --- PHASE 2: Data Processing & Target Generation ---
-        logger.info("PHASE 2: Initializing Feature Engineering and Target Clustering...")
+        # --- PHASE 2: Data Processing & Feature Engineering ---
+        logger.info("PHASE 2: Initializing Feature Engineering...")
         engineer = SREngineer(config=config.get("features", {}))
         processed_df = engineer.process_pipeline(raw_data_path)
-        processed_df.to_csv(processed_data_path, index=False)
 
         # --- PHASE 3: Machine Learning ---
-        logger.info("PHASE 3: Initializing Random Forest Hyperparameter Tuning & Training...")
+        logger.info("PHASE 3: Splitting data and generating targets (Fixed Leakage)...")
         trainer = SRModelTrainer(config=config.get("train", {}))
-        X_train, X_test, y_train, y_test = trainer.prepare_data(processed_df)
+        
+        # 3.1 Initial Chronological Split
+        test_size = config.get("train", {}).get("test_size", 0.2)
+        split_idx = int(len(processed_df) * (1 - test_size))
+        
+        train_df_raw = processed_df.iloc[:split_idx].copy()
+        test_df_raw = processed_df.iloc[split_idx:].copy()
+
+        # 3.2 Fit Clusters on TRAINING data only
+        engineer.fit_clusters(train_df_raw)
+        
+        # 3.3 Label targets for both sets using training clusters
+        train_df_labeled = engineer.label_targets(train_df_raw)
+        test_df_labeled = engineer.label_targets(test_df_raw)
+
+        # Combine for saving/visualization purposes (optional but keeps existing flow)
+        full_processed_df = pd.concat([train_df_labeled, test_df_labeled])
+        full_processed_df.to_csv(processed_data_path, index=False)
+
+        # 3.4 Prepare balanced training set and final features
+        logger.info("PHASE 3.4: Initializing Random Forest Hyperparameter Tuning & Training...")
+        X_train, X_test, y_train, y_test = trainer.prepare_data_from_split(train_df_labeled, test_df_labeled)
         
         trainer.train(X_train, y_train)
 
