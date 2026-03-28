@@ -37,5 +37,7 @@ jobs:
       - name: Commit Champion Models and Artifacts
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Automated ML-Ops: Update Champion Models and Asset Charts"
-          file_pattern: "output/production_models/*.pkl output/visualizations/*.png datasets/*.csv"
+          commit_message: "Automated ML-Ops: Update Champion Models"
+          file_pattern: "output/production_models/*.pkl"
+          add_options: '--force'
+          skip_dirty_check: false
