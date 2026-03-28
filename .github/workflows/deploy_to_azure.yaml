@@ -1,7 +1,9 @@
-name: Build and Deploy to Azure ACI
+name: Automated MLOps Azure Deployment
 
 on:
-  workflow_dispatch: # Allows you to manually trigger for your report screenshots
+  push:
+    branches: [ main ] # Triggers automatically on every push
+  workflow_dispatch:   # Also allows manual trigger for testing
 
 jobs:
   build-and-deploy:
@@ -17,23 +19,25 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build and Push Docker Image
+      - name: Build and Push ML Image
         run: |
-          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest .
-          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }} .
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }}
 
-      - name: Deploy to ACI via Azure CLI
+      - name: Deploy to ACI (Bypass Login)
         uses: azure/CLI@v1
         with:
-          azcliversion: 2.30.0
+          azcliversion: latest
           inlineScript: |
+            # We use the Registry Password to authenticate the creation without 'az login'
             az container create \
               --resource-group rg-sr-ops \
-              --name sr-trainer \
-              --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest \
+              --name sr-trainer-automated \
+              --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }} \
               --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
               --registry-username ${{ secrets.REGISTRY_USERNAME }} \
               --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
+              --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }} \
               --location westeurope \
               --cpu 2 \
               --memory 4 \
