@@ -6,16 +6,23 @@ import os
 def fetch_binance_klines(symbol='ETHUSDT', interval='1h', total_records=60000, filename='extracted_dataset.csv'):
     """
     Fetches historical K-line data from Binance and saves it to a CSV.
+    Tries multiple mirror endpoints to bypass regional restrictions (e.g., in GitHub Actions).
     """
-    url = "https://api.binance.com/api/v3/klines"
-    all_data = []
-    last_time = None  # Used for pagination (moving backwards in time)
+    endpoints = [
+        "https://api.binance.com/api/v3/klines",
+        "https://api1.binance.com/api/v3/klines",
+        "https://api2.binance.com/api/v3/klines",
+        "https://api3.binance.com/api/v3/klines"
+    ]
     
-    # Binance returns a maximum of 1000 records per request
+    all_data = []
+    last_time = None
     limit = 1000
     batches_needed = (total_records // limit) + (1 if total_records % limit > 0 else 0)
     
     print(f"Starting extraction for {symbol} ({interval})...")
+    
+    current_endpoint_idx = 0
     
     for i in range(batches_needed):
         params = {
@@ -27,28 +34,46 @@ def fetch_binance_klines(symbol='ETHUSDT', interval='1h', total_records=60000, f
         # If we already have data, fetch records older than the oldest one we have
         if last_time:
             params['endTime'] = last_time - 1
-            
-        try:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            if not data:
-                print("No more data available on Binance servers.")
-                break
+
+        success = False
+        attempts = 0
+        
+        while not success and attempts < len(endpoints):
+            url = endpoints[current_endpoint_idx]
+            try:
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
                 
-            all_data.extend(data)
-            
-            # The first element of the first list in 'data' is the 'open_time'
-            last_time = data[0][0]
-            
-            print(f"Progress: {len(all_data)}/{total_records} records collected...")
-            
-            # Small sleep to respect API rate limits
-            time.sleep(0.1)
-            
-        except Exception as e:
-            print(f"Error fetching batch {i+1}: {e}")
+                if not data:
+                    print("No more data available on Binance servers.")
+                    break
+                    
+                all_data.extend(data)
+                
+                # The first element of the first list in 'data' is the 'open_time'
+                last_time = data[0][0]
+                
+                print(f"Progress: {len(all_data)}/{total_records} records collected (via {url})...")
+                
+                # Small sleep to respect API rate limits
+                time.sleep(0.1)
+                success = True
+                
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 451:
+                    print(f"Endpoint {url} blocked (451). Trying next mirror...")
+                    current_endpoint_idx = (current_endpoint_idx + 1) % len(endpoints)
+                    attempts += 1
+                else:
+                    print(f"Error fetching batch {i+1}: {e}")
+                    break
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+                break
+        
+        if not success and attempts >= len(endpoints):
+            print("All Binance endpoints are blocked or unavailable.")
             break
 
     # Define columns to match your btc_dataset.csv
