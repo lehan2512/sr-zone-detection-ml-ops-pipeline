@@ -1,0 +1,8 @@
+pandas
+scikit-learn
+matplotlib
+joblib
+numpy
+yfinance
+ccxt
+python-dotenv
