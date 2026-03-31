@@ -57,13 +57,24 @@ def main():
         logger.info(f"--- PHASE 1: Data Processing ({raw_data_path.name}) ---")
         processed_df = engineer.process_pipeline(raw_data_path)
         
+        logger.info("--- PHASE 2: Target Labeling (Preventing Leakage) ---")
+        # Split for clustering fit (using the same split ratio as trainer)
+        split_idx = int(len(processed_df) * (1 - train_cfg.get("test_size", 0.2)))
+        train_df_for_fit = processed_df.iloc[:split_idx].copy()
+        
+        # Fit clusters on training data only
+        engineer.fit_clusters(train_df_for_fit)
+        
+        # Label the entire dataset based on these clusters
+        labeled_df = engineer.label_targets(processed_df)
+        
         # Save processed data
         processed_data_path.parent.mkdir(parents=True, exist_ok=True)
-        processed_df.to_csv(processed_data_path, index=False)
-        logger.info(f"Processed data saved to {processed_data_path}")
+        labeled_df.to_csv(processed_data_path, index=False)
+        logger.info(f"Processed and labeled data saved to {processed_data_path}")
 
-        logger.info("--- PHASE 2: Model Training & Evaluation ---")
-        X_train, X_test, y_train, y_test = trainer.prepare_data(processed_df)
+        logger.info("--- PHASE 3: Model Training & Evaluation ---")
+        X_train, X_test, y_train, y_test = trainer.prepare_data(labeled_df)
         
         trainer.train(X_train, y_train)
         trainer.evaluate(X_test, y_test)

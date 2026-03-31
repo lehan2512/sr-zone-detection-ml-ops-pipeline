@@ -4,7 +4,11 @@ import sys
 import yaml
 import argparse
 import pandas as pd
+import warnings
 from pathlib import Path
+
+# Suppress annoying sklearn warnings that clutter the output
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 # Import your pipeline modules
 from fetch import fetch_binance_klines
@@ -15,19 +19,20 @@ from visualize import SRVisualizer
 # Use a module-level logger
 logger = logging.getLogger(__name__)
 
-def setup_logging(symbol: str, base_dir: Path):
+def setup_logging(symbol: str, base_dir: Path, quiet: bool = False):
     """Configures standard structured logging for the pipeline run."""
     log_dir = base_dir / "output" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"pipeline_{symbol}.log"
 
+    handlers = [logging.FileHandler(log_file)]
+    if not quiet:
+        handlers.append(logging.StreamHandler(sys.stdout))
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler(log_file)
-        ],
+        handlers=handlers,
         force=True # Forces a reset of the logging config for sequential runs
     )
 
@@ -38,7 +43,7 @@ def load_config(config_path: Path) -> dict:
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
-def run_ml_microservice(symbol: str) -> str:
+def run_ml_microservice(symbol: str, quiet: bool = False) -> str:
     """
     The main orchestrator function. 
     Returns a JSON string containing the S/R zones and chart paths for the UI.
@@ -50,7 +55,7 @@ def run_ml_microservice(symbol: str) -> str:
     datasets_dir.mkdir(exist_ok=True)
     
     # Initialize standard logging
-    setup_logging(symbol, base_dir)
+    setup_logging(symbol, base_dir, quiet=quiet)
     logger.info(f"--- INITIALIZING ML-OPS PIPELINE FOR: {symbol} ---")
 
     # 2. Dynamic File Paths for this specific symbol
@@ -116,17 +121,25 @@ def run_ml_microservice(symbol: str) -> str:
 
         # --- PHASE 5: UI JSON Payload Generation ---
         logger.info(f"PHASE 5: Packaging {symbol} S/R zones and chart paths for UI payload...")
+        
+        # Helper to make paths relative to base_dir
+        def get_rel_path(p_str):
+            try:
+                return str(Path(p_str).relative_to(base_dir)).replace("\\", "/")
+            except ValueError:
+                return p_str
+
         payload = {
             "symbol": symbol,
             "status": "success",
             "data": {
-                "support_zones": [round(val, 2) for val in engineer.support_centers],
-                "resistance_zones": [round(val, 2) for val in engineer.resistance_centers]
+                "support_zones": sorted([round(val, 2) for val in engineer.support_centers]),
+                "resistance_zones": sorted([round(val, 2) for val in engineer.resistance_centers], reverse=True)
             },
             "charts": {
-                "price_zones_url": chart_paths['price_zones'],
-                "feature_importance_url": chart_paths['feature_importance'],
-                "confusion_matrix_url": chart_paths['confusion_matrix']
+                "price_zones_url": get_rel_path(chart_paths['price_zones']),
+                "feature_importance_url": get_rel_path(chart_paths['feature_importance']),
+                "confusion_matrix_url": get_rel_path(chart_paths['confusion_matrix'])
             },
             "message": "Pipeline executed successfully."
         }
@@ -149,11 +162,14 @@ def run_ml_microservice(symbol: str) -> str:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the SR Detection ML Pipeline.")
     parser.add_argument("--symbol", type=str, default="BTCUSDT", help="The Binance trading pair symbol (e.g., ETHUSDT)")
+    parser.add_argument("--quiet", action="store_true", help="Suppress logs to stdout (only output final JSON)")
     args = parser.parse_args()
 
-    final_json = run_ml_microservice(args.symbol)
+    final_json = run_ml_microservice(args.symbol, quiet=args.quiet)
     
-    print("\n" + "="*50)
-    print("FINAL UI JSON PAYLOAD:")
-    print("="*50)
+    if not args.quiet:
+        print("\n" + "="*50)
+        print("FINAL UI JSON PAYLOAD:")
+        print("="*50)
+    
     print(final_json)

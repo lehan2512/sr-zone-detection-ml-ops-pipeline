@@ -145,7 +145,7 @@ class SRModelTrainer:
             scoring='f1_macro', # Optimize for the F1 score to balance Precision/Recall
             random_state=self.params["random_state"],
             n_jobs=-1, # Use all CPU cores
-            verbose=1  # Print progress to terminal
+            verbose=0  # Silenced
         )
 
         # Execute the search on the undersampled training data

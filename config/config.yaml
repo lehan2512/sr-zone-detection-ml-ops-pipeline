@@ -1,7 +1,7 @@
 # Data Processing Parameters
 data:
-  raw_path: "datasets/eth_dataset.csv"
-  processed_path: "datasets/processed_data.csv"
+  raw_path: "datasets/BTCUSDT_raw.csv"
+  processed_path: "datasets/BTCUSDT_processed.csv"
   
 features:
   rsi_period: 14

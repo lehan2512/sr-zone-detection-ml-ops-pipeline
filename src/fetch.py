@@ -2,6 +2,10 @@ import requests
 import pandas as pd
 import time
 import os
+import logging
+
+# Use a module-level logger
+logger = logging.getLogger(__name__)
 
 def fetch_binance_klines(symbol='ETHUSDT', interval='1h', total_records=60000, filename='extracted_dataset.csv'):
     """
@@ -15,7 +19,7 @@ def fetch_binance_klines(symbol='ETHUSDT', interval='1h', total_records=60000, f
     limit = 1000
     batches_needed = (total_records // limit) + (1 if total_records % limit > 0 else 0)
     
-    print(f"Starting extraction for {symbol} ({interval})...")
+    logger.info(f"Starting extraction for {symbol} ({interval})...")
     
     for i in range(batches_needed):
         params = {
@@ -34,7 +38,7 @@ def fetch_binance_klines(symbol='ETHUSDT', interval='1h', total_records=60000, f
             data = response.json()
             
             if not data:
-                print("No more data available on Binance servers.")
+                logger.info("No more data available on Binance servers.")
                 break
                 
             all_data.extend(data)
@@ -42,13 +46,14 @@ def fetch_binance_klines(symbol='ETHUSDT', interval='1h', total_records=60000, f
             # The first element of the first list in 'data' is the 'open_time'
             last_time = data[0][0]
             
-            print(f"Progress: {len(all_data)}/{total_records} records collected...")
+            if (len(all_data) % 5000 == 0) or (len(all_data) == total_records):
+                logger.info(f"Progress: {len(all_data)}/{total_records} records collected...")
             
             # Small sleep to respect API rate limits
             time.sleep(0.1)
             
         except Exception as e:
-            print(f"Error fetching batch {i+1}: {e}")
+            logger.error(f"Error fetching batch {i+1}: {e}")
             break
 
     # Define columns to match your btc_dataset.csv
@@ -69,7 +74,7 @@ def fetch_binance_klines(symbol='ETHUSDT', interval='1h', total_records=60000, f
     
     # Save to CSV
     df.to_csv(filename, index=False)
-    print(f"Successfully saved {len(df)} records to {filename}")
+    logger.info(f"Successfully saved {len(df)} records to {filename}")
     return df
 
 # --- Execution ---

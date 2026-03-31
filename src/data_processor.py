@@ -44,10 +44,21 @@ class SREngineer:
 
             df = pd.read_csv(path)
             
+            # Phase 1: Sanitization
             df = self._sanitize_data(df)
+            
+            # Phase 2: Feature Engineering (Rolling windows work here)
             df = self._engineer_features(df)
             
-            logger.info("Data processing pipeline (Features) completed successfully.")
+            # Phase 3: RVT Filter & Stats Analysis
+            # We calculate stats before and after the filter to prove quality improvement
+            self._log_quality_metrics(df, "Pre-RVT Filter")
+            
+            df = self._apply_rvt_filter(df)
+            
+            self._log_quality_metrics(df, "Post-RVT Filter")
+            
+            logger.info("Data processing pipeline completed successfully.")
             return df
             
         except Exception as e:
@@ -55,18 +66,70 @@ class SREngineer:
             raise
 
     def _sanitize_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean raw data artifacts."""
+        """Clean raw data artifacts and handle nulls/outliers."""
         df = df.copy()
-        if 'ignore' in df.columns:
-            df.drop(columns=['ignore'], inplace=True)
-            
-        # Remove dead zones
         initial_len = len(df)
-        df = df[df['volume'] > 0]
-        df.reset_index(drop=True, inplace=True)
         
+        # 1. Filter irrelevant columns
+        # We only need: (open, high, low, close, volume, number_of_trades)
+        keep_cols = ['open', 'high', 'low', 'close', 'volume', 'number_of_trades']
+        existing_cols = [c for c in keep_cols if c in df.columns]
+        df = df[existing_cols]
+            
+        # 2. Handle Null Values
+        # Forward fill price data, fill volume and trades with 0
+        price_cols = ['open', 'high', 'low', 'close']
+        df[price_cols] = df[price_cols].ffill()
+        if 'volume' in df.columns:
+            df['volume'] = df['volume'].fillna(0)
+        if 'number_of_trades' in df.columns:
+            df['number_of_trades'] = df['number_of_trades'].fillna(0)
+        
+        # Drop rows where we still have NaNs in price (e.g., at the very beginning)
+        df.dropna(subset=price_cols, inplace=True)
+            
+        # 3. Handle Price Outliers (Avoid touching volume/trades as per instructions)
+        # Using a conservative approach: remove rows where high < low or price <= 0
+        df = df[(df['high'] >= df['low']) & (df['close'] > 0)]
+        
+        # 4. Remove dead zones (volume = 0)
+        if 'volume' in df.columns:
+            df = df[df['volume'] > 0]
+        
+        df.reset_index(drop=True, inplace=True)
         logger.info(f"Sanitization complete. Removed {initial_len - len(df)} rows.")
         return df
+
+    def _apply_rvt_filter(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Applies Rolling Volume Threshold (RVT) filter to improve data quality.
+        Keeps bars where volume is in the upper quartile of the rolling window.
+        """
+        p = self.params
+        # Compute threshold (75th percentile)
+        thresholds = df['volume'].rolling(window=p['vol_ma_period']).quantile(0.75).shift(1)
+        
+        # Filter: keep high-volume bars that are 'more reliable'
+        df_filtered = df[df['volume'] >= thresholds].copy()
+        df_filtered.reset_index(drop=True, inplace=True)
+        
+        return df_filtered
+
+    def _log_quality_metrics(self, df: pd.DataFrame, label: str):
+        """Calculates and logs statistics to prove data quality improvement."""
+        metrics = {
+            "Mean Close": df['close'].mean(),
+            "Std Close": df['close'].std(),
+            "Var Close": df['close'].var(),
+            "Mean Volume": df['volume'].mean(),
+            "Std Volume": df['volume'].std(),
+            "Var Volume": df['volume'].var(),
+            "Count": len(df)
+        }
+        
+        logger.info(f"--- Data Quality Metrics: {label} ---")
+        for k, v in metrics.items():
+            logger.info(f"  {k}: {v:.4f}")
 
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Feature engineering for ML model."""
