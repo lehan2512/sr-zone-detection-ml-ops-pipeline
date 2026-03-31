@@ -1,0 +1,46 @@
+name: User Inference Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: 'Trading pair symbol (e.g., BTCUSDT, ETHUSDT)'
+        required: true
+        default: 'BTCUSDT'
+        type: string
+
+jobs:
+  inference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Fetch Latest Data
+        run: |
+          echo "Fetching latest data for ${{ github.event.inputs.symbol }}..."
+          # Placeholder for fetching latest klines without training
+          # python src/fetch.py --symbol ${{ github.event.inputs.symbol }}
+
+      - name: Run Inference
+        run: |
+          echo "Running Support/Resistance inference for ${{ github.event.inputs.symbol }}..."
+          # Placeholder for a dedicated inference script or using orchestrator in a specific mode
+          # python src/orchestrator.py --symbol ${{ github.event.inputs.symbol }} --inference-only
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: inference-results-${{ github.event.inputs.symbol }}
+          path: output/visualizations/

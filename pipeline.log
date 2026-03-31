@@ -120,3 +120,40 @@ KeyError: 'target'
 2026-03-30 04:06:38,984 - train - INFO - Evaluating model on test data...
 2026-03-30 04:06:39,217 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
 2026-03-30 04:06:39,218 - pipeline - INFO - Pipeline Execution Successful.
+2026-03-31 21:14:58,150 - pipeline - INFO - --- PHASE 1: Data Processing (BTCUSDT_raw.csv) ---
+2026-03-31 21:14:58,152 - data_processor - INFO - Starting data processing pipeline for C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\BTCUSDT_raw.csv
+2026-03-31 21:14:58,340 - data_processor - INFO - Sanitization complete. Removed 3 rows.
+2026-03-31 21:14:58,390 - data_processor - INFO - --- Data Quality Metrics: Pre-RVT Filter ---
+2026-03-31 21:14:58,391 - data_processor - INFO -   Mean Close: 44902.9790
+2026-03-31 21:14:58,391 - data_processor - INFO -   Std Close: 31969.3800
+2026-03-31 21:14:58,392 - data_processor - INFO -   Var Close: 1022041255.0209
+2026-03-31 21:14:58,392 - data_processor - INFO -   Mean Volume: 2907.6440
+2026-03-31 21:14:58,393 - data_processor - INFO -   Std Volume: 4237.8825
+2026-03-31 21:14:58,393 - data_processor - INFO -   Var Volume: 17959648.3364
+2026-03-31 21:14:58,394 - data_processor - INFO -   Count: 59977.0000
+2026-03-31 21:14:58,436 - data_processor - INFO - --- Data Quality Metrics: Post-RVT Filter ---
+2026-03-31 21:14:58,438 - data_processor - INFO -   Mean Close: 45419.0095
+2026-03-31 21:14:58,438 - data_processor - INFO -   Std Close: 32055.3014
+2026-03-31 21:14:58,439 - data_processor - INFO -   Var Close: 1027542350.6114
+2026-03-31 21:14:58,440 - data_processor - INFO -   Mean Volume: 4902.6823
+2026-03-31 21:14:58,441 - data_processor - INFO -   Std Volume: 6208.2350
+2026-03-31 21:14:58,442 - data_processor - INFO -   Var Volume: 38542181.8555
+2026-03-31 21:14:58,442 - data_processor - INFO -   Count: 16694.0000
+2026-03-31 21:14:58,442 - data_processor - INFO - Data processing pipeline completed successfully.
+2026-03-31 21:14:58,442 - pipeline - INFO - --- PHASE 2: Target Labeling (Preventing Leakage) ---
+2026-03-31 21:14:58,466 - data_processor - INFO - Volume filter retained 103 peaks and 119 troughs from training data.
+2026-03-31 21:15:01,130 - data_processor - INFO - Optimal K for Resistance: 8 (Score: 0.6612)
+2026-03-31 21:15:01,577 - data_processor - INFO - Optimal K for Support: 8 (Score: 0.6743)
+2026-03-31 21:15:01,800 - pipeline - INFO - Processed and labeled data saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\datasets\BTCUSDT_processed.csv
+2026-03-31 21:15:01,801 - pipeline - INFO - --- PHASE 3: Model Training & Evaluation ---
+2026-03-31 21:15:01,802 - train - INFO - Preparing data for training (Chronological Split + Undersampling)...
+2026-03-31 21:15:01,810 - train - INFO - Original Training set: 13355 records
+2026-03-31 21:15:01,811 - train - INFO - Undersampled Training set: 6327 records (Forced model attention)
+2026-03-31 21:15:01,811 - train - INFO - Testing set (Untouched reality): 3339 records
+2026-03-31 21:15:01,812 - train - INFO - Starting Hyperparameter Tuning via RandomizedSearchCV (TimeSeriesSplit)...
+2026-03-31 21:15:31,004 - train - INFO - Hyperparameter Tuning Complete.
+2026-03-31 21:15:31,006 - train - INFO - Best Parameters Found: {'n_estimators': 300, 'min_samples_split': 15, 'min_samples_leaf': 4, 'max_features': None, 'max_depth': 20}
+2026-03-31 21:15:31,007 - train - INFO - Optimized model is ready for evaluation.
+2026-03-31 21:15:31,008 - train - INFO - Evaluating model on test data...
+2026-03-31 21:15:31,478 - train - INFO - Model successfully saved to C:\Users\lehelk\OneDrive - IFS\Desktop\projects\Project\root\output\production_models\sr_rf_model.pkl
+2026-03-31 21:15:31,480 - pipeline - INFO - Pipeline Execution Successful.
