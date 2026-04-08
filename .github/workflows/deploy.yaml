@@ -41,6 +41,8 @@ jobs:
               --registry-username ${{ secrets.REGISTRY_USERNAME }} \
               --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
               --location eastasia \
+              --os-type Linux \
+              --subscription d35fd91a-6d8a-4d47-b194-93c8a3355137 \
               --cpu 2 \
               --memory 4 \
               --restart-policy OnFailure
