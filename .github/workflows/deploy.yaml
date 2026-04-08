@@ -1,4 +1,4 @@
-name: Automated MLOps Azure Deployment
+name: Deployment Pipeline
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -19,17 +19,20 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build and Push ML Image
+      - name: Build and Push Model Image
         run: |
           docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }} .
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }}
 
-      - name: Deploy to ACI (Direct Auth)
+      - name: Azure Login via Managed Identity
+        run: az login --identity
+
+      - name: Deploy to ACI
         uses: azure/CLI@v1
         with:
           azcliversion: latest
           inlineScript: |
-            # The --subscription flag is the "magic" that bypasses the 'az login' error
+            # No subscription secret needed here as the identity is already scoped
             az container create \
               --resource-group rg-sr-ops \
               --name sr-trainer-automated \
@@ -37,7 +40,6 @@ jobs:
               --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
               --registry-username ${{ secrets.REGISTRY_USERNAME }} \
               --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
-              --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }} \
               --location westeurope \
               --cpu 2 \
               --memory 4 \

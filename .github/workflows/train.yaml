@@ -1,4 +1,4 @@
-name: Continuous Training Pipeline
+name: Training Pipeline
 
 on:
   schedule:

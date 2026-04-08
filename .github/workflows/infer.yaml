@@ -1,4 +1,4 @@
-name: User Inference Pipeline
+name: Inference Pipeline
 
 on:
   workflow_dispatch:
