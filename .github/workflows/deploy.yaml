@@ -46,6 +46,6 @@ jobs:
               --subscription d35fd91a-6d8a-4d47-b194-93c8a3355137 \
               --environment-variables AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
               --command-line "python src/orchestrator.py --symbol BTCUSDT --mode verify" \
-              --cpu 2 \
-              --memory 4 \
+              --cpu 1 \
+              --memory 2 \
               --restart-policy OnFailure
