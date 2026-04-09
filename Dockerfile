@@ -19,5 +19,5 @@ COPY config/ ./config/
 # Ensure datasets folder exists for local file operations
 RUN mkdir -p datasets 
 
-# Set the entrypoint to run your orchestrator
-ENTRYPOINT ["python", "src/orchestrator.py"]
+# Set the default command (can be overridden by ACI --command-line)
+CMD ["python", "src/orchestrator.py", "--symbol", "BTCUSDT", "--mode", "verify"]
