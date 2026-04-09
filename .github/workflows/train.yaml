@@ -2,42 +2,54 @@ name: Training Pipeline
 
 on:
   schedule:
-    # Runs automatically at 00:00 UTC every Sunday
     - cron: "0 0 * * 0" 
   workflow_dispatch:
-    # Allows you to manually trigger the pipeline from the GitHub UI for your screenshot
 
 jobs:
-  train-and-deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+  train-champion:
+    runs-on: self-hosted
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Azure Login via Managed Identity
+        run: az login --identity
 
-      - name: Setup Python 3.10
-        uses: actions/setup-python@v4
+      - name: Trigger ACI Training (BTC)
+        uses: azure/CLI@v1
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          azcliversion: latest
+          inlineScript: |
+            az container create \
+              --resource-group rg-sr-ops \
+              --name sr-trainer-btc \
+              --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest \
+              --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
+              --registry-username ${{ secrets.REGISTRY_USERNAME }} \
+              --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
+              --location eastasia \
+              --os-type Linux \
+              --subscription d35fd91a-6d8a-4d47-b194-93c8a3355137 \
+              --environment-variables AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              --command-line "python src/orchestrator.py --symbol BTCUSDT --mode train" \
+              --cpu 2 \
+              --memory 4 \
+              --restart-policy Never
 
-      - name: Install Pipeline Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Execute Pipeline (BTC)
-        run: python src/orchestrator.py --symbol BTCUSDT
-
-      - name: Execute Pipeline (ETH)
-        run: python src/orchestrator.py --symbol ETHUSDT
-
-      - name: Commit Champion Models and Artifacts
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Trigger ACI Training (ETH)
+        uses: azure/CLI@v1
         with:
-          commit_message: "Automated ML-Ops: Update Champion Models"
-          file_pattern: "output/production_models/*.pkl"
-          add_options: '--force'
-          skip_dirty_check: false
+          azcliversion: latest
+          inlineScript: |
+            az container create \
+              --resource-group rg-sr-ops \
+              --name sr-trainer-eth \
+              --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest \
+              --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
+              --registry-username ${{ secrets.REGISTRY_USERNAME }} \
+              --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
+              --location eastasia \
+              --os-type Linux \
+              --subscription d35fd91a-6d8a-4d47-b194-93c8a3355137 \
+              --environment-variables AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              --command-line "python src/orchestrator.py --symbol ETHUSDT --mode train" \
+              --cpu 2 \
+              --memory 4 \
+              --restart-policy Never

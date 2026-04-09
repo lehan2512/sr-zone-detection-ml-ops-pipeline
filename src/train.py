@@ -5,7 +5,7 @@ import joblib
 from pathlib import Path
 from typing import Tuple, List, Optional, Union
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 
 # Use a module-level logger
@@ -188,3 +188,48 @@ class SRModelTrainer:
         model_filepath = output_path / model_name
         joblib.dump(self.model, model_filepath)
         logger.info(f"Model successfully saved to {model_filepath}")
+
+    def load_model(self, model_path: Union[str, Path]) -> bool:
+        """Loads an existing .pkl model from disk."""
+        try:
+            path = Path(model_path)
+            if not path.exists():
+                logger.warning(f"Model file not found: {path}")
+                return False
+            self.model = joblib.load(path)
+            logger.info(f"Model loaded from {path}")
+            return True
+        except Exception as e:
+            logger.error(f"Error loading model: {str(e)}")
+            return False
+
+    def evaluate_champion_vs_challenger(self, X_test: pd.DataFrame, y_test: pd.Series, champion_model_path: Union[str, Path]) -> bool:
+        """
+        Compares the current trained model (Challenger) with a Champion model from disk.
+        Returns True if Challenger is better or if no Champion exists.
+        """
+        # 1. Calculate Challenger Score
+        challenger_preds = self.model.predict(X_test)
+        challenger_f1 = f1_score(y_test, challenger_preds, average='macro')
+        logger.info(f"Challenger (Current) F1-Macro: {challenger_f1:.4f}")
+
+        # 2. Try to Load and Evaluate Champion
+        if not Path(champion_model_path).exists():
+            logger.info("No Champion model found to compare against. Challenger wins by default.")
+            return True
+
+        try:
+            champion_model = joblib.load(champion_model_path)
+            champion_preds = champion_model.predict(X_test)
+            champion_f1 = f1_score(y_test, champion_preds, average='macro')
+            logger.info(f"Champion (Existing) F1-Macro: {champion_f1:.4f}")
+
+            if challenger_f1 > champion_f1:
+                logger.info(f"CHALLENGER wins! Improvement: {challenger_f1 - champion_f1:.4f}")
+                return True
+            else:
+                logger.info(f"CHAMPION remains superior. Difference: {champion_f1 - challenger_f1:.4f}")
+                return False
+        except Exception as e:
+            logger.error(f"Error comparing models: {str(e)}. Defaulting to Challenger.")
+            return True

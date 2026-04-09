@@ -8,3 +8,4 @@ seaborn
 joblib
 requests
 python-dotenv
+azure-storage-blob

@@ -20,5 +20,4 @@ COPY config/ ./config/
 RUN mkdir -p datasets 
 
 # Set the entrypoint to run your orchestrator
-# This allows Azure ACI to trigger the pipeline immediately on startup
-ENTRYPOINT ["python", "src/orchestrator.py", "--symbol", "ETHUSDT"]
+ENTRYPOINT ["python", "src/orchestrator.py"]

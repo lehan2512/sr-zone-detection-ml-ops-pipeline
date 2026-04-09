@@ -15,6 +15,7 @@ from fetch import fetch_binance_klines
 from data_processor import SREngineer
 from train import SRModelTrainer
 from visualize import SRVisualizer
+from blob_manager import upload_to_blob, download_blob
 
 # Use a module-level logger
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ def setup_logging(symbol: str, base_dir: Path, quiet: bool = False):
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=handlers,
-        force=True # Forces a reset of the logging config for sequential runs
+        force=True 
     )
 
 def load_config(config_path: Path) -> dict:
@@ -43,133 +44,114 @@ def load_config(config_path: Path) -> dict:
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
-def run_ml_microservice(symbol: str, quiet: bool = False) -> str:
+def run_ml_microservice(symbol: str, mode: str = "train", quiet: bool = False) -> str:
     """
     The main orchestrator function. 
-    Returns a JSON string containing the S/R zones and chart paths for the UI.
+    Supports modes: train, infer, verify
     """
-    # 1. Setup Environment Paths
     base_dir = Path(__file__).resolve().parent.parent
     config_path = base_dir / "config" / "config.yaml"
     datasets_dir = base_dir / "datasets"
     datasets_dir.mkdir(exist_ok=True)
+    output_dir = base_dir / "output" / "production_models"
+    output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Initialize standard logging
     setup_logging(symbol, base_dir, quiet=quiet)
-    logger.info(f"--- INITIALIZING ML-OPS PIPELINE FOR: {symbol} ---")
+    logger.info(f"--- INITIALIZING ML-OPS PIPELINE | SYMBOL: {symbol} | MODE: {mode.upper()} ---")
 
-    # 2. Dynamic File Paths for this specific symbol
     raw_data_path = datasets_dir / f"{symbol}_raw.csv"
     processed_data_path = datasets_dir / f"{symbol}_processed.csv"
+    champion_model_path = output_dir / f"champion_model_{symbol}.pkl"
+    challenger_model_path = output_dir / f"challenger_model_{symbol}.pkl"
 
     try:
-        # 3. Load Base Config & Apply Dynamic Overrides
         config = load_config(config_path)
-        config['data']['raw_path'] = str(raw_data_path)
-        config['data']['processed_path'] = str(processed_data_path)
-
-        # --- PHASE 1: Data Ingestion ---
-        logger.info(f"PHASE 1: Fetching latest 60,000 hourly candles for {symbol}...")
-        fetch_binance_klines(symbol=symbol, interval='1h', total_records=60000, filename=str(raw_data_path))
-
-        # --- PHASE 2: Data Processing & Feature Engineering ---
-        logger.info("PHASE 2: Initializing Feature Engineering...")
         engineer = SREngineer(config=config.get("features", {}))
-        processed_df = engineer.process_pipeline(raw_data_path)
-
-        # --- PHASE 3: Machine Learning ---
-        logger.info("PHASE 3: Splitting data and generating targets (Fixed Leakage)...")
         trainer = SRModelTrainer(config=config.get("train", {}))
-        
-        # 3.1 Initial Chronological Split
-        test_size = config.get("train", {}).get("test_size", 0.2)
-        split_idx = int(len(processed_df) * (1 - test_size))
-        
-        train_df_raw = processed_df.iloc[:split_idx].copy()
-        test_df_raw = processed_df.iloc[split_idx:].copy()
 
-        # 3.2 Fit Clusters on TRAINING data only
-        engineer.fit_clusters(train_df_raw)
-        
-        # 3.3 Label targets for both sets using training clusters
-        train_df_labeled = engineer.label_targets(train_df_raw)
-        test_df_labeled = engineer.label_targets(test_df_raw)
+        # --- MODE: VERIFY (CI/CD Check) ---
+        if mode == "verify":
+            logger.info("PHASE: Verification Mode. Fetching minimal data...")
+            fetch_binance_klines(symbol=symbol, interval='1h', total_records=100, filename=str(raw_data_path))
+            engineer.process_pipeline(raw_data_path)
+            logger.info("Verification successful.")
+            return json.dumps({"status": "verified", "symbol": symbol})
 
-        # Combine for saving/visualization purposes (optional but keeps existing flow)
-        full_processed_df = pd.concat([train_df_labeled, test_df_labeled])
-        full_processed_df.to_csv(processed_data_path, index=False)
+        # --- MODE: INFER (On-Demand Inference) ---
+        if mode == "infer":
+            logger.info("PHASE: Inference Mode. Fetching latest data...")
+            fetch_binance_klines(symbol=symbol, interval='1h', total_records=500, filename=str(raw_data_path))
+            
+            # Download Champion from Blob Storage
+            success = download_blob(container_name="models", blob_name=f"sr_rf_model_{symbol}.pkl", download_path=champion_model_path)
+            if not success:
+                raise Exception(f"Could not find a champion model for {symbol} in storage. Run training first.")
 
-        # 3.4 Prepare balanced training set and final features
-        logger.info("PHASE 3.4: Initializing Random Forest Hyperparameter Tuning & Training...")
-        X_train, X_test, y_train, y_test = trainer.prepare_data_from_split(train_df_labeled, test_df_labeled)
-        
-        trainer.train(X_train, y_train)
+            trainer.load_model(champion_model_path)
+            processed_df = engineer.process_pipeline(raw_data_path)
+            
+            # For inference, we still need to fit clusters to get support/resistance centers
+            engineer.fit_clusters(processed_df)
+            
+            payload = {
+                "symbol": symbol,
+                "status": "success",
+                "mode": "inference",
+                "data": {
+                    "support_zones": sorted([round(val, 2) for val in engineer.support_centers]),
+                    "resistance_zones": sorted([round(val, 2) for val in engineer.resistance_centers], reverse=True)
+                }
+            }
+            return json.dumps(payload, indent=4)
 
-        model_path = base_dir / "output" / "production_models" / "sr_rf_model.pkl"
-        trainer.save_model(output_dir=model_path.parent, model_name=model_path.name)
+        # --- MODE: TRAIN (Scheduled Champion/Challenger) ---
+        if mode == "train":
+            logger.info("PHASE: Training Mode. Fetching 60,000 candles...")
+            fetch_binance_klines(symbol=symbol, interval='1h', total_records=60000, filename=str(raw_data_path))
+            
+            processed_df = engineer.process_pipeline(raw_data_path)
+            test_size = config.get("train", {}).get("test_size", 0.2)
+            split_idx = int(len(processed_df) * (1 - test_size))
+            
+            train_df_raw = processed_df.iloc[:split_idx].copy()
+            test_df_raw = processed_df.iloc[split_idx:].copy()
 
-        # --- PHASE 4: Visual Generation ---
-        logger.info(f"PHASE 4: Generating charts for UI render ({symbol})...")
-        viz_dir = base_dir / "output" / "visualizations"
-        visualizer = SRVisualizer(
-            data_path=str(processed_data_path),
-            model_path=str(model_path),
-            output_dir=str(viz_dir),
-            symbol=symbol
-        )
-        chart_paths = visualizer.generate_all()
+            engineer.fit_clusters(train_df_raw)
+            train_df_labeled = engineer.label_targets(train_df_raw)
+            test_df_labeled = engineer.label_targets(test_df_raw)
 
-        # --- PHASE 5: UI JSON Payload Generation ---
-        logger.info(f"PHASE 5: Packaging {symbol} S/R zones and chart paths for UI payload...")
-        
-        # Helper to make paths relative to base_dir
-        def get_rel_path(p_str):
-            try:
-                return str(Path(p_str).relative_to(base_dir)).replace("\\", "/")
-            except ValueError:
-                return p_str
+            X_train, X_test, y_train, y_test = trainer.prepare_data_from_split(train_df_labeled, test_df_labeled)
+            
+            logger.info("Training Challenger model...")
+            trainer.train(X_train, y_train)
+            trainer.save_model(output_dir=output_dir, model_name=f"challenger_model_{symbol}.pkl")
 
-        payload = {
-            "symbol": symbol,
-            "status": "success",
-            "data": {
-                "support_zones": sorted([round(val, 2) for val in engineer.support_centers]),
-                "resistance_zones": sorted([round(val, 2) for val in engineer.resistance_centers], reverse=True)
-            },
-            "charts": {
-                "price_zones_url": get_rel_path(chart_paths['price_zones']),
-                "feature_importance_url": get_rel_path(chart_paths['feature_importance']),
-                "confusion_matrix_url": get_rel_path(chart_paths['confusion_matrix'])
-            },
-            "message": "Pipeline executed successfully."
-        }
+            # Download existing Champion to compare
+            download_blob(container_name="models", blob_name=f"sr_rf_model_{symbol}.pkl", download_path=champion_model_path)
+            
+            is_better = trainer.evaluate_champion_vs_challenger(X_test, y_test, champion_model_path)
 
-        json_output = json.dumps(payload, indent=4)
-        logger.info(f"--- PIPELINE COMPLETE FOR {symbol} ---")
-        return json_output
+            if is_better:
+                logger.info("New model is better! Promoting Challenger to Champion.")
+                trainer.save_model(output_dir=output_dir, model_name=f"sr_rf_model_{symbol}.pkl")
+                upload_to_blob(output_dir / f"sr_rf_model_{symbol}.pkl", container_name="models")
+                message = "New model promoted to Champion."
+            else:
+                logger.info("Challenger failed to beat Champion. Keeping existing model.")
+                message = "Champion retained."
+
+            return json.dumps({"status": "success", "symbol": symbol, "message": message, "challenger_won": is_better})
 
     except Exception as e:
-        # Standard error handling with exc_info=True to print the full stack trace to the log
         logger.error(f"Pipeline failed for {symbol}: {str(e)}", exc_info=True)
-        error_payload = {
-            "symbol": symbol,
-            "status": "error",
-            "message": str(e)
-        }
-        return json.dumps(error_payload, indent=4)
-
+        return json.dumps({"symbol": symbol, "status": "error", "message": str(e)})
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the SR Detection ML Pipeline.")
-    parser.add_argument("--symbol", type=str, default="BTCUSDT", help="The Binance trading pair symbol (e.g., ETHUSDT)")
-    parser.add_argument("--quiet", action="store_true", help="Suppress logs to stdout (only output final JSON)")
+    parser = argparse.ArgumentParser(description="SR Detection ML Orchestrator.")
+    parser.add_argument("--symbol", type=str, default="BTCUSDT")
+    parser.add_argument("--mode", type=str, choices=["train", "infer", "verify"], default="train")
+    parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
 
-    final_json = run_ml_microservice(args.symbol, quiet=args.quiet)
-    
-    if not args.quiet:
-        print("\n" + "="*50)
-        print("FINAL UI JSON PAYLOAD:")
-        print("="*50)
-    
+    final_json = run_ml_microservice(args.symbol, mode=args.mode, quiet=args.quiet)
     print(final_json)
