@@ -80,7 +80,7 @@ def run_ml_microservice(symbol: str, mode: str = "train", quiet: bool = False) -
         # --- MODE: INFER (On-Demand Inference) ---
         if mode == "infer":
             logger.info("PHASE: Inference Mode. Fetching latest data...")
-            fetch_binance_klines(symbol=symbol, interval='1h', total_records=500, filename=str(raw_data_path))
+            fetch_binance_klines(symbol=symbol, interval='1h', total_records=60000, filename=str(raw_data_path))
             
             # Download Champion from Blob Storage
             success = download_blob(container_name="models", blob_name=f"sr_rf_model_{symbol}.pkl", download_path=champion_model_path)
