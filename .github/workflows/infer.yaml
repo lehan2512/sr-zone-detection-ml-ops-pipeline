@@ -21,10 +21,13 @@ jobs:
         with:
           azcliversion: latest
           inlineScript: |
+            # Convert symbol to lowercase for the container name
+            SYMBOL_LOWER=$(echo "${{ github.event.inputs.symbol }}" | tr '[:upper:]' '[:lower:]')
+            
             # Create/Run ACI
             az container create \
               --resource-group rg-sr-ops \
-              --name sr-infer-${{ github.event.inputs.symbol }} \
+              --name sr-infer-${SYMBOL_LOWER} \
               --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest \
               --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
               --registry-username ${{ secrets.REGISTRY_USERNAME }} \
@@ -41,4 +44,4 @@ jobs:
             # Wait for completion and show logs
             echo "Waiting for inference to complete..."
             sleep 30
-            az container logs --resource-group rg-sr-ops --name sr-infer-${{ github.event.inputs.symbol }}
+            az container logs --resource-group rg-sr-ops --name sr-infer-${SYMBOL_LOWER}
