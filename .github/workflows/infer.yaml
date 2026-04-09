@@ -28,7 +28,7 @@ jobs:
             az container create \
               --resource-group rg-sr-ops \
               --name sr-infer-${SYMBOL_LOWER} \
-              --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest \
+              --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:prod \
               --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
               --registry-username ${{ secrets.REGISTRY_USERNAME }} \
               --registry-password ${{ secrets.REGISTRY_PASSWORD }} \

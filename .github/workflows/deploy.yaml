@@ -21,9 +21,9 @@ jobs:
 
       - name: Build and Push Model Image
         run: |
-          docker build --no-cache -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }} -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest .
+          docker build --no-cache -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }} -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:prod .
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:${{ github.sha }}
-          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:latest
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/sr-ops:prod
 
       - name: Azure Login via Managed Identity
         run: az login --identity
