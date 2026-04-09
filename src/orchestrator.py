@@ -90,7 +90,7 @@ def run_ml_microservice(symbol: str, mode: str = "train", quiet: bool = False) -
             trainer.load_model(champion_model_path)
             processed_df = engineer.process_pipeline(raw_data_path)
             
-            # For inference, we still need to fit clusters to get support/resistance centers
+            # For inference, we still need to fit clusters to get support/resistance center
             engineer.fit_clusters(processed_df)
             
             payload = {
